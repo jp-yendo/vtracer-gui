@@ -2,13 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import os
-import io
-import traceback
 from pathlib import Path
 from typing import Optional
 
-import vtracer
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -20,9 +16,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QPushButton,
     QFileDialog,
-    QTextEdit,
     QSplitter,
-    QFrame,
     QGroupBox,
     QGridLayout,
     QMessageBox,
@@ -31,9 +25,11 @@ from PyQt5.QtWidgets import (
     QSpacerItem,
     QSizePolicy,
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QMimeData, QTimer
-from PyQt5.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QFont, QIcon
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QIcon
 from PyQt5.QtSvg import QSvgWidget
+
+import vtracer
 
 
 class ConversionWorker(QThread):
@@ -93,7 +89,9 @@ class ImageDropWidget(QLabel):
         super().__init__()
         self.setAcceptDrops(True)
         self.setAlignment(Qt.AlignCenter)
-        self.setScaledContents(False)  # スケールされたコンテンツを無効にして縦横比を維持
+        self.setScaledContents(
+            False
+        )  # スケールされたコンテンツを無効にして縦横比を維持
         self.original_pixmap = None  # 元画像を保持
         self.setStyleSheet(
             """
@@ -358,7 +356,7 @@ class VTracerGUI(QMainWindow):
         self.image_widget.imageDropped.connect(self.load_image)
         left_splitter.addWidget(self.image_widget)
 
-                # SVGプレビューエリア（下部50%）
+        # SVGプレビューエリア（下部50%）
         svg_container = QWidget()
         svg_container_layout = QVBoxLayout(svg_container)
         svg_container_layout.setContentsMargins(5, 5, 5, 5)  # 少し余白を追加
@@ -547,7 +545,7 @@ class VTracerGUI(QMainWindow):
     def resizeEvent(self, event):
         """ウィンドウリサイズ時にSVGも調整"""
         super().resizeEvent(event)
-        if hasattr(self, 'svg_widget') and self.current_svg_content:
+        if hasattr(self, "svg_widget") and self.current_svg_content:
             # SVGサイズを再調整
             QTimer.singleShot(100, self.adjust_svg_size)
 
