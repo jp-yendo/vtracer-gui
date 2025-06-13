@@ -93,6 +93,8 @@ class ImageDropWidget(QLabel):
         super().__init__()
         self.setAcceptDrops(True)
         self.setAlignment(Qt.AlignCenter)
+        self.setScaledContents(False)  # スケールされたコンテンツを無効にして縦横比を維持
+        self.original_pixmap = None  # 元画像を保持
         self.setStyleSheet(
             """
             QLabel {
@@ -144,11 +146,24 @@ class ImageDropWidget(QLabel):
     def set_image(self, file_path: str):
         pixmap = QPixmap(file_path)
         if not pixmap.isNull():
-            # 画像をウィジェットサイズに合わせてスケール
-            scaled_pixmap = pixmap.scaled(
+            self.original_pixmap = pixmap  # 元画像を保持
+            self.update_scaled_image()
+            # 縦横比を維持して中央揃えで表示
+            self.setAlignment(Qt.AlignCenter)
+            self.setScaledContents(False)
+
+    def update_scaled_image(self):
+        """元画像から適切にスケールした画像を表示"""
+        if self.original_pixmap and not self.original_pixmap.isNull():
+            scaled_pixmap = self.original_pixmap.scaled(
                 self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
             )
             self.setPixmap(scaled_pixmap)
+
+    def resizeEvent(self, event):
+        """ウィジェットのリサイズ時に画像も再スケール"""
+        super().resizeEvent(event)
+        self.update_scaled_image()
 
 
 class ParameterControlWidget(QWidget):
@@ -343,7 +358,11 @@ class VTracerGUI(QMainWindow):
         self.image_widget.imageDropped.connect(self.load_image)
         left_splitter.addWidget(self.image_widget)
 
-        # SVGプレビューエリア（下部50%）
+                # SVGプレビューエリア（下部50%）
+        svg_container = QWidget()
+        svg_container_layout = QVBoxLayout(svg_container)
+        svg_container_layout.setContentsMargins(5, 5, 5, 5)  # 少し余白を追加
+
         self.svg_widget = QSvgWidget()
         self.svg_widget.setStyleSheet(
             """
@@ -353,7 +372,12 @@ class VTracerGUI(QMainWindow):
             }
         """
         )
-        left_splitter.addWidget(self.svg_widget)
+        # SVGの縦横比を維持するための設定
+        self.svg_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # SVGを中央揃えで配置し、縦横比を維持
+        svg_container_layout.addWidget(self.svg_widget, 0, Qt.AlignCenter)
+        left_splitter.addWidget(svg_container)
 
         # 50%ずつに分割
         left_splitter.setSizes([400, 400])
@@ -484,6 +508,8 @@ class VTracerGUI(QMainWindow):
         try:
             svg_bytes = svg_content.encode("utf-8")
             self.svg_widget.load(svg_bytes)
+            # SVGの縦横比を維持するためのサイズ調整
+            self.adjust_svg_size()
         except Exception as e:
             QMessageBox.warning(self, "Warning", f"Failed to display SVG: {str(e)}")
 
@@ -495,6 +521,44 @@ class VTracerGUI(QMainWindow):
         QMessageBox.information(
             self, "Complete", "Image conversion completed successfully."
         )
+
+    def adjust_svg_size(self):
+        """SVGのサイズを調整して縦横比を維持"""
+        if self.svg_widget.renderer() and self.svg_widget.renderer().isValid():
+            # SVGの元のサイズを取得
+            svg_size = self.svg_widget.renderer().defaultSize()
+            container_size = self.svg_widget.parent().size()
+
+            if svg_size.isValid() and not container_size.isEmpty():
+                # 縦横比を維持してcontainサイズを計算
+                container_width = container_size.width() - 20  # 余白を考慮
+                container_height = container_size.height() - 20
+
+                scale_x = container_width / svg_size.width()
+                scale_y = container_height / svg_size.height()
+                scale = min(scale_x, scale_y)
+
+                # 新しいサイズを設定（縦横比維持）
+                new_width = int(svg_size.width() * scale)
+                new_height = int(svg_size.height() * scale)
+
+                self.svg_widget.setFixedSize(new_width, new_height)
+
+    def resizeEvent(self, event):
+        """ウィンドウリサイズ時にSVGも調整"""
+        super().resizeEvent(event)
+        if hasattr(self, 'svg_widget') and self.current_svg_content:
+            # SVGサイズを再調整
+            QTimer.singleShot(100, self.adjust_svg_size)
+
+    def refresh_svg_display(self):
+        """SVG表示を更新"""
+        if self.current_svg_content:
+            try:
+                svg_bytes = self.current_svg_content.encode("utf-8")
+                self.svg_widget.load(svg_bytes)
+            except Exception:
+                pass
 
     def on_conversion_error(self, error_message: str):
         """変換エラー時の処理"""
