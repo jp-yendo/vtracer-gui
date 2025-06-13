@@ -87,3 +87,8 @@ chmod +x make.sh
 ```
 
 ビルドが完了すると、`dist`フォルダに実行可能ファイルが作成されます。
+
+## VTracerについて
+
+- [VTracer GitHub](https://github.com/visioncortex/vtracer)
+- [VTracer Demo](https://www.visioncortex.org/vtracer/)
